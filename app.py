@@ -1,184 +1,4 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-# Page Configuration
-st.set_page_config(
-    page_title="Shopping Trends Dashboard",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Custom CSS
-st.markdown("""
-    <style>
-    .main {
-        background-color: #f8f9fa;
-    }
-    h1 {
-        color: #1f2937;
-        font-weight: 700;
-    }
-    h2 {
-        color: #374151;
-        font-weight: 600;
-        margin-top: 2rem;
-    }
-    .stButton button {
-        width: 100%;
-    }
-    .section-header {
-        background-color: #3b82f6;
-        color: white;
-        padding: 15px;
-        border-radius: 10px;
-        margin: 30px 0 20px 0;
-        text-align: center;
-        font-size: 1.5em;
-        font-weight: bold;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Initialize session state
-if 'selected_items' not in st.session_state:
-    st.session_state.selected_items = []
-if 'selected_age_group' not in st.session_state:
-    st.session_state.selected_age_group = []
-if 'selected_categories' not in st.session_state:
-    st.session_state.selected_categories = []
-if 'checkbox_reset_counter' not in st.session_state:
-    st.session_state.checkbox_reset_counter = 0
-
-# Load Data
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_csv('Shopping_behavior_updated.csv')
-    except FileNotFoundError:
-        st.error("Error: 'Shopping_behavior_updated.csv' not found. Please ensure the file is in the correct path.")
-        return pd.DataFrame() 
-        
-    # Clean data
-    df = df.dropna()
-    df = df.drop_duplicates()
-    df['Review Rating'] = pd.to_numeric(df['Review Rating'], errors='coerce')
-    df['Purchase Amount (USD)'] = pd.to_numeric(df['Purchase Amount (USD)'], errors='coerce')
-    df['Age'] = pd.to_numeric(df['Age'], errors='coerce')
-    return df
-
-df = load_data()
-
-# Handle empty data case
-if df.empty:
-    st.stop()
-
-# SIDEBAR 
-st.sidebar.title("Dashboard Filters")
-st.sidebar.markdown("---")
-
-# Reset all filters button
-if st.sidebar.button("Reset All Filters", use_container_width=True):
-    st.session_state.selected_items = []
-    st.session_state.selected_age_group = []
-    st.session_state.selected_categories = []
-    st.session_state.checkbox_reset_counter += 1
-    st.rerun()
-
-st.sidebar.markdown("### Manual Filters")
-
-# Gender filter
-selected_gender = st.sidebar.multiselect(
-    "Gender",
-    options=df['Gender'].unique(),
-    default=df['Gender'].unique()
-)
-
-# Season filter
-selected_season = st.sidebar.multiselect(
-    "Season",
-    options=df['Season'].unique(),
-    default=df['Season'].unique()
-)
-
-# Category filter
-selected_category = st.sidebar.multiselect(
-    "Category",
-    options=df['Category'].unique(),
-    default=df['Category'].unique()
-)
-
-# Age range slider
-age_range = st.sidebar.slider(
-    "Age Range",
-    int(df['Age'].min()),
-    int(df['Age'].max()),
-    (int(df['Age'].min()), int(df['Age'].max()))
-)
-
-# Purchase amount range slider
-purchase_range = st.sidebar.slider(
-    "Purchase Amount Range (USD)",
-    int(df['Purchase Amount (USD)'].min()),
-    int(df['Purchase Amount (USD)'].max()),
-    (int(df['Purchase Amount (USD)'].min()), int(df['Purchase Amount (USD)'].max()))
-)
-
-# Show active interactive filters
-st.sidebar.markdown("---")
-st.sidebar.markdown("### Active Interactive Filters")
-
-if st.session_state.selected_items:
-    st.sidebar.info(f"Items: {len(st.session_state.selected_items)} selected")
-
-if st.session_state.selected_age_group:
-    st.sidebar.info(f"Age Groups: {', '.join(st.session_state.selected_age_group)}")
-
-if st.session_state.selected_categories:
-    st.sidebar.info(f"Categories: {', '.join(st.session_state.selected_categories)}")
-
-# Apply manual filters only (no interactive filters yet)
-filtered_df = df[
-    (df['Gender'].isin(selected_gender)) &
-    (df['Season'].isin(selected_season)) &
-    (df['Category'].isin(selected_category)) &
-    (df['Age'].between(age_range[0], age_range[1])) &
-    (df['Purchase Amount (USD)'].between(purchase_range[0], purchase_range[1]))
-]
-
-# Apply interactive filters for other visualizations
-final_filtered_df = filtered_df.copy()
-
-if st.session_state.selected_items:
-    final_filtered_df = final_filtered_df[final_filtered_df['Item Purchased'].isin(st.session_state.selected_items)]
-
-if st.session_state.selected_age_group:
-    age_groups_temp = pd.cut(final_filtered_df['Age'], bins=[0, 25, 35, 45, 55, 65, 100], 
-                        labels=['18-25', '26-35', '36-45', '46-55', '56-65', '65+'])
-    final_filtered_df = final_filtered_df[age_groups_temp.isin(st.session_state.selected_age_group)]
-
-if st.session_state.selected_categories:
-    final_filtered_df = final_filtered_df[final_filtered_df['Category'].isin(st.session_state.selected_categories)]
-
-st.sidebar.markdown("---")
-st.sidebar.metric("Filtered Records", f"{len(final_filtered_df):,} / {len(df):,}")
-
-# Handle empty data after filtering
-if final_filtered_df.empty:
-    st.warning("No data matches the current filters. Please adjust your selections.")
-    st.stop()
-
-# MAIN CONTENT 
-st.title("Interactive Shopping Trends Analysis Dashboard")
-st.markdown("""
-Welcome to the Interactive Shopping Dashboard. Click on any visualization to filter all others dynamically.
-- **3 Basic + 6 Advanced Visualizations** with full interactivity
-- Real-time filtering across all charts
-- Business insights for strategic decision-making
-""")
 
 # VISUALIZATION 1: PIE CHART - Sales Distribution by Category
 st.header("1. Pie Chart - Sales Distribution by Category")
@@ -294,6 +114,126 @@ with st.expander("View Insights - Correlation Heatmap"):
     **Insight:** Values close to 1 or -1 indicate strong positive or negative relationships
     
     **Business Value:** Helps understand which factors most strongly influence purchase behavior
+    """)
+
+st.markdown("---")
+
+# VISUALIZATION 4: LINE CHART - Average Purchase by Age Group
+st.header("4. Line Chart - Average Purchase by Age Group")
+col1, col2 = st.columns([3, 1])
+
+with col1:
+    filtered_df_temp = final_filtered_df.copy()
+    filtered_df_temp['Age Group'] = pd.cut(
+        filtered_df_temp['Age'], 
+        bins=[0, 25, 35, 45, 55, 65, 100], 
+        labels=['18-25', '26-35', '36-45', '46-55', '56-65', '65+']
+    )
+    age_spending = filtered_df_temp.groupby('Age Group', observed=True)['Purchase Amount (USD)'].mean().reset_index()
+    
+    age_order = ['18-25', '26-35', '36-45', '46-55', '56-65', '65+']
+    age_spending['Age Group'] = pd.Categorical(age_spending['Age Group'], categories=age_order, ordered=True)
+    age_spending = age_spending.sort_values('Age Group')
+    
+    fig2 = px.line(
+        age_spending,
+        x='Age Group',
+        y='Purchase Amount (USD)',
+        title='Average Purchase Amount by Age Group',
+        markers=True,
+        line_shape='linear'
+    )
+    fig2.update_traces(line=dict(color='#059669', width=3), marker=dict(size=12))
+    fig2.update_layout(height=450)
+    st.plotly_chart(fig2, use_container_width=True)
+
+with col2:
+    st.markdown("**Select Age Groups:**")
+    age_group_list = ['18-25', '26-35', '36-45', '46-55', '56-65', '65+']
+    
+    new_age_selection = []
+    
+    for age_grp in age_group_list:
+        if st.checkbox(age_grp, value=age_grp in st.session_state.selected_age_group, 
+                      key=f'age_checkbox_{age_grp}_{st.session_state.checkbox_reset_counter}'):
+            new_age_selection.append(age_grp)
+    
+    if set(new_age_selection) != set(st.session_state.selected_age_group):
+        st.session_state.selected_age_group = new_age_selection
+        st.rerun()
+    
+    if st.button("Clear Age Groups", key='clear_age', use_container_width=True):
+        st.session_state.selected_age_group = []
+        st.session_state.checkbox_reset_counter += 1
+        st.rerun()
+
+with st.expander("View Insights - Line Chart"):
+    st.write("""
+    **Purpose:** Displays average spending patterns across different age groups
+    
+    **Insight:** Shows which age demographic spends the most on average
+    
+    **Business Value:** Enables targeted marketing campaigns for high-value age segments
+    """)
+
+st.markdown("---")
+
+# VISUALIZATION 5: PARALLEL COORDINATES - Customer Segmentation
+st.header("5. Parallel Coordinates Plot - Customer Segmentation")
+
+sample_size = min(500, len(final_filtered_df))
+if sample_size >= 2:
+    parallel_df = final_filtered_df[['Age', 'Purchase Amount (USD)', 'Review Rating', 'Previous Purchases']].sample(sample_size)
+    
+    fig6 = px.parallel_coordinates(
+        parallel_df,
+        dimensions=['Age', 'Purchase Amount (USD)', 'Review Rating', 'Previous Purchases'],
+        color='Purchase Amount (USD)',
+        color_continuous_scale='Viridis',
+        title='Multi-dimensional Customer Profile (Drag axes to reorder)'
+    )
+    fig6.update_layout(height=500)
+    st.plotly_chart(fig6, use_container_width=True)
+else:
+    st.info("Insufficient data for Parallel Coordinates Plot.")
+
+with st.expander("View Insights - Parallel Coordinates"):
+    st.write("""
+    **Purpose:** Shows relationships between multiple numerical variables simultaneously
+    
+    **Insight:** Each line represents an individual customer across different dimensions
+    
+    **Business Value:** Identifies patterns and segments of high-value customers for targeted engagement
+    """)
+
+st.markdown("---")
+
+# VISUALIZATION 6: SUNBURST - Seasonal Category Breakdown
+st.header("6. Sunburst Chart - Seasonal Category Breakdown")
+
+if len(final_filtered_df) > 0 and len(final_filtered_df['Season'].unique()) > 1:
+    sunburst_data = final_filtered_df.groupby(['Season', 'Category', 'Item Purchased'])['Purchase Amount (USD)'].sum().reset_index()
+    
+    fig7 = px.sunburst(
+        sunburst_data,
+        path=['Season', 'Category', 'Item Purchased'],
+        values='Purchase Amount (USD)',
+        color='Purchase Amount (USD)',
+        color_continuous_scale='RdBu_r', 
+        title='Season → Category → Item (Click to zoom in)'
+    )
+    fig7.update_layout(height=600)
+    st.plotly_chart(fig7, use_container_width=True)
+else:
+    st.info("Insufficient data or variety for Sunburst Chart. Need more than one Season.")
+
+with st.expander("View Insights - Sunburst Chart"):
+    st.write("""
+    **Purpose:** Hierarchical breakdown of sales by season, category, and specific items
+    
+    **Insight:** Inner rings represent seasons, outer rings show categories and individual products
+    
+    **Business Value:** Enables seasonal inventory planning and promotional campaign scheduling
     """)
 
 st.markdown("---")
