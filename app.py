@@ -1,184 +1,4 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-# Page Configuration
-st.set_page_config(
-    page_title="Shopping Trends Dashboard",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Custom CSS
-st.markdown("""
-    <style>
-    .main {
-        background-color: #f8f9fa;
-    }
-    h1 {
-        color: #1f2937;
-        font-weight: 700;
-    }
-    h2 {
-        color: #374151;
-        font-weight: 600;
-        margin-top: 2rem;
-    }
-    .stButton button {
-        width: 100%;
-    }
-    .section-header {
-        background-color: #3b82f6;
-        color: white;
-        padding: 15px;
-        border-radius: 10px;
-        margin: 30px 0 20px 0;
-        text-align: center;
-        font-size: 1.5em;
-        font-weight: bold;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Initialize session state
-if 'selected_items' not in st.session_state:
-    st.session_state.selected_items = []
-if 'selected_age_group' not in st.session_state:
-    st.session_state.selected_age_group = []
-if 'selected_categories' not in st.session_state:
-    st.session_state.selected_categories = []
-if 'checkbox_reset_counter' not in st.session_state:
-    st.session_state.checkbox_reset_counter = 0
-
-# Load Data
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_csv('Shopping_behavior_updated.csv')
-    except FileNotFoundError:
-        st.error("Error: 'Shopping_behavior_updated.csv' not found. Please ensure the file is in the correct path.")
-        return pd.DataFrame() 
-        
-    # Clean data
-    df = df.dropna()
-    df = df.drop_duplicates()
-    df['Review Rating'] = pd.to_numeric(df['Review Rating'], errors='coerce')
-    df['Purchase Amount (USD)'] = pd.to_numeric(df['Purchase Amount (USD)'], errors='coerce')
-    df['Age'] = pd.to_numeric(df['Age'], errors='coerce')
-    return df
-
-df = load_data()
-
-# Handle empty data case
-if df.empty:
-    st.stop()
-
-# SIDEBAR 
-st.sidebar.title("Dashboard Filters")
-st.sidebar.markdown("---")
-
-# Reset all filters button
-if st.sidebar.button("Reset All Filters", use_container_width=True):
-    st.session_state.selected_items = []
-    st.session_state.selected_age_group = []
-    st.session_state.selected_categories = []
-    st.session_state.checkbox_reset_counter += 1
-    st.rerun()
-
-st.sidebar.markdown("### Manual Filters")
-
-# Gender filter
-selected_gender = st.sidebar.multiselect(
-    "Gender",
-    options=df['Gender'].unique(),
-    default=df['Gender'].unique()
-)
-
-# Season filter
-selected_season = st.sidebar.multiselect(
-    "Season",
-    options=df['Season'].unique(),
-    default=df['Season'].unique()
-)
-
-# Category filter
-selected_category = st.sidebar.multiselect(
-    "Category",
-    options=df['Category'].unique(),
-    default=df['Category'].unique()
-)
-
-# Age range slider
-age_range = st.sidebar.slider(
-    "Age Range",
-    int(df['Age'].min()),
-    int(df['Age'].max()),
-    (int(df['Age'].min()), int(df['Age'].max()))
-)
-
-# Purchase amount range slider
-purchase_range = st.sidebar.slider(
-    "Purchase Amount Range (USD)",
-    int(df['Purchase Amount (USD)'].min()),
-    int(df['Purchase Amount (USD)'].max()),
-    (int(df['Purchase Amount (USD)'].min()), int(df['Purchase Amount (USD)'].max()))
-)
-
-# Show active interactive filters
-st.sidebar.markdown("---")
-st.sidebar.markdown("### Active Interactive Filters")
-
-if st.session_state.selected_items:
-    st.sidebar.info(f"Items: {len(st.session_state.selected_items)} selected")
-
-if st.session_state.selected_age_group:
-    st.sidebar.info(f"Age Groups: {', '.join(st.session_state.selected_age_group)}")
-
-if st.session_state.selected_categories:
-    st.sidebar.info(f"Categories: {', '.join(st.session_state.selected_categories)}")
-
-# Apply manual filters only (no interactive filters yet)
-filtered_df = df[
-    (df['Gender'].isin(selected_gender)) &
-    (df['Season'].isin(selected_season)) &
-    (df['Category'].isin(selected_category)) &
-    (df['Age'].between(age_range[0], age_range[1])) &
-    (df['Purchase Amount (USD)'].between(purchase_range[0], purchase_range[1]))
-]
-
-# Apply interactive filters for other visualizations
-final_filtered_df = filtered_df.copy()
-
-if st.session_state.selected_items:
-    final_filtered_df = final_filtered_df[final_filtered_df['Item Purchased'].isin(st.session_state.selected_items)]
-
-if st.session_state.selected_age_group:
-    age_groups_temp = pd.cut(final_filtered_df['Age'], bins=[0, 25, 35, 45, 55, 65, 100], 
-                        labels=['18-25', '26-35', '36-45', '46-55', '56-65', '65+'])
-    final_filtered_df = final_filtered_df[age_groups_temp.isin(st.session_state.selected_age_group)]
-
-if st.session_state.selected_categories:
-    final_filtered_df = final_filtered_df[final_filtered_df['Category'].isin(st.session_state.selected_categories)]
-
-st.sidebar.markdown("---")
-st.sidebar.metric("Filtered Records", f"{len(final_filtered_df):,} / {len(df):,}")
-
-# Handle empty data after filtering
-if final_filtered_df.empty:
-    st.warning("No data matches the current filters. Please adjust your selections.")
-    st.stop()
-
-# MAIN CONTENT 
-st.title("Interactive Shopping Trends Analysis Dashboard")
-st.markdown("""
-Welcome to the Interactive Shopping Dashboard. Click on any visualization to filter all others dynamically.
-- **3 Basic + 6 Advanced Visualizations** with full interactivity
-- Real-time filtering across all charts
-- Business insights for strategic decision-making
-""")
 
 # VISUALIZATION 1: PIE CHART - Sales Distribution by Category
 st.header("1. Pie Chart - Sales Distribution by Category")
@@ -417,3 +237,209 @@ with st.expander("View Insights - Sunburst Chart"):
     """)
 
 st.markdown("---")
+
+# VISUALIZATION 7: BAR CHART - Top 10 Most Purchased Items
+st.header("7. Bar Chart - Top 10 Most Purchased Items")
+col1, col2 = st.columns([3, 1])
+
+with col1:
+    # Prepare data for bar chart (excluding item filter)
+    bar_chart_df = df[
+        (df['Gender'].isin(selected_gender)) &
+        (df['Season'].isin(selected_season)) &
+        (df['Category'].isin(selected_category)) &
+        (df['Age'].between(age_range[0], age_range[1])) &
+        (df['Purchase Amount (USD)'].between(purchase_range[0], purchase_range[1]))
+    ]
+    
+    # Apply age group filter if exists
+    if st.session_state.selected_age_group:
+        age_groups_bar = pd.cut(bar_chart_df['Age'], bins=[0, 25, 35, 45, 55, 65, 100], 
+                            labels=['18-25', '26-35', '36-45', '46-55', '56-65', '65+'])
+        bar_chart_df = bar_chart_df[age_groups_bar.isin(st.session_state.selected_age_group)]
+    
+    # Apply category filter if exists
+    if st.session_state.selected_categories:
+        bar_chart_df = bar_chart_df[bar_chart_df['Category'].isin(st.session_state.selected_categories)]
+    
+    # Show selected items or top 10
+    if st.session_state.selected_items:
+        display_df = bar_chart_df[bar_chart_df['Item Purchased'].isin(st.session_state.selected_items)]
+        top_items = display_df['Item Purchased'].value_counts().reset_index()
+        top_items.columns = ['Item', 'Count']
+        chart_title = f'Selected Items ({len(st.session_state.selected_items)} items)'
+    else:
+        top_items = bar_chart_df['Item Purchased'].value_counts().head(10).reset_index()
+        top_items.columns = ['Item', 'Count']
+        chart_title = 'Top 10 Most Purchased Items'
+    
+    fig1 = px.bar(
+        top_items,
+        x='Item',
+        y='Count',
+        title=chart_title,
+        color='Count',
+        color_continuous_scale='Blues',
+    )
+    fig1.update_layout(height=450, xaxis_tickangle=-45)
+    st.plotly_chart(fig1, use_container_width=True)
+
+with col2:
+    st.markdown("**Select Items:**")
+    
+    # Prepare checkbox base data
+    checkbox_base_df = filtered_df.copy()
+    
+    if st.session_state.selected_age_group:
+        age_groups_cb = pd.cut(checkbox_base_df['Age'], bins=[0, 25, 35, 45, 55, 65, 100], 
+                            labels=['18-25', '26-35', '36-45', '46-55', '56-65', '65+'])
+        checkbox_base_df = checkbox_base_df[age_groups_cb.isin(st.session_state.selected_age_group)]
+    
+    if st.session_state.selected_categories:
+        checkbox_base_df = checkbox_base_df[checkbox_base_df['Category'].isin(st.session_state.selected_categories)]
+    
+    # Get top 10 items for checkboxes
+    if len(checkbox_base_df) > 0:
+        top_items_for_cb = checkbox_base_df['Item Purchased'].value_counts().head(10).reset_index()
+        top_items_for_cb.columns = ['Item', 'Count']
+        top_10_items = top_items_for_cb['Item'].tolist()
+    else:
+        top_10_items = []
+    
+    # Track new selection
+    new_selection = []
+    
+    # Checkbox for each item
+    for item in top_10_items:
+        is_checked = st.checkbox(
+            item, 
+            value=item in st.session_state.selected_items,
+            key=f'item_checkbox_{item}_{st.session_state.checkbox_reset_counter}'
+        )
+        
+        if is_checked:
+            new_selection.append(item)
+    
+    # Update if selection changed
+    if set(new_selection) != set(st.session_state.selected_items):
+        st.session_state.selected_items = new_selection
+        st.rerun()
+    
+    # Clear button
+    if st.button("Clear Items", key='clear_items', use_container_width=True):
+        st.session_state.selected_items = []
+        st.session_state.checkbox_reset_counter += 1
+        st.rerun()
+
+with st.expander("View Insights - Bar Chart"):
+    st.write("""
+    **Purpose:** Shows the top 10 most purchased items in the dataset
+    
+    **Insight:** Identifies best-selling products that drive revenue
+    
+    **Business Value:** Helps with inventory management and stock planning for high-demand items
+    """)
+
+st.markdown("---")
+
+# VISUALIZATION 8: SANKEY DIAGRAM - Customer Journey Flow
+st.header("8. Sankey Diagram - Customer Journey Flow")
+
+if len(final_filtered_df) > 1 and len(final_filtered_df['Payment Method'].unique()) > 1:
+    sankey_df = final_filtered_df.groupby(['Category', 'Payment Method', 'Shipping Type']).size().reset_index(name='count')
+    all_labels = list(pd.concat([sankey_df['Category'], sankey_df['Payment Method'], sankey_df['Shipping Type']]).unique())
+    label_dict = {label: idx for idx, label in enumerate(all_labels)}
+    
+    source, target, values = [], [], []
+    for _, row in sankey_df.iterrows():
+        source.append(label_dict[row['Category']])
+        target.append(label_dict[row['Payment Method']])
+        values.append(row['count'])
+    
+    payment_shipping = final_filtered_df.groupby(['Payment Method', 'Shipping Type']).size().reset_index(name='count')
+    for _, row in payment_shipping.iterrows():
+        source.append(label_dict[row['Payment Method']])
+        target.append(label_dict[row['Shipping Type']])
+        values.append(row['count'])
+    
+    if source:
+        fig5 = go.Figure(data=[go.Sankey(
+            node=dict(pad=15, thickness=20, label=all_labels, color="lightblue"),
+            link=dict(source=source, target=target, value=values)
+        )])
+        fig5.update_layout(title_text="Category → Payment → Shipping Flow", height=600)
+        st.plotly_chart(fig5, use_container_width=True)
+    else:
+        st.info("Insufficient linked data for Sankey Diagram.")
+else:
+    st.info("Insufficient data for Sankey Diagram. Need more varied Payment/Shipping types.")
+
+with st.expander("View Insights - Sankey Diagram"):
+    st.write("""
+    **Purpose:** Visualizes the customer journey from category selection to payment and shipping preferences
+    
+    **Insight:** Flow thickness represents transaction volume through each path
+    
+    **Business Value:** Understands payment and shipping preferences by category to optimize checkout experience
+    """)
+
+st.markdown("---")
+
+# VISUALIZATION 9: 3D SCATTER PLOT - Multi-dimensional Analysis with Glyphs
+st.header("9. 3D Scatter Plot - Multi-dimensional Analysis with Glyphs")
+
+sample_size_3d = min(1000, len(final_filtered_df))
+
+if sample_size_3d >= 2:
+    scatter_3d = final_filtered_df.sample(sample_size_3d)
+    
+    # Create symbol mapping for payment methods
+    symbol_map = {
+        'Cash': 'circle',
+        'Credit Card': 'diamond',
+        'Debit Card': 'cross',
+        'PayPal': 'square',
+        'Venmo': 'x',
+        'Bank Transfer': 'diamond-open'
+    }
+    
+    fig8 = px.scatter_3d(
+        scatter_3d,
+        x='Age',
+        y='Purchase Amount (USD)',
+        z='Review Rating',
+        color='Category',
+        size='Previous Purchases',
+        symbol='Payment Method',
+        symbol_map=symbol_map,
+        hover_data=['Gender', 'Season'],
+        title='Age × Purchase × Rating by Payment Method (Rotate to explore)',
+        color_discrete_sequence=['#3b82f6', '#ef4444', '#fbbf24', '#10b981'] 
+    )
+    fig8.update_layout(height=600)
+    st.plotly_chart(fig8, use_container_width=True)
+else:
+    st.info("Insufficient data for 3D Scatter Plot.")
+
+with st.expander("View Insights - 3D Scatter Plot"):
+    st.write("""
+    **Purpose:** Three-dimensional relationship between age, spending, and customer satisfaction
+    
+    **Insight:** Point shape (glyph) indicates the Payment Method used. This helps identify if certain payment methods correlate with high review scores or high spending
+    
+    **Business Value:** Identifies loyal, high-value customer segments based on their preferred payment channels
+    """)
+
+st.markdown("---")
+
+
+# FOOTER
+st.markdown("---")
+st.markdown("""
+    <div style='text-align: center; color: #6b7280; padding: 20px; background-color: #f3f4f6; border-radius: 10px;'>
+        <h3>Team Members</h3>
+        <p><strong>Ceren | Gülse | Hasibe</strong></p>
+        <p>CEN445 Data Visualization Project | 2025-26</p>
+        <p><strong>3 Basic + 6 Advanced Visualizations</strong> | Business Intelligence Dashboard</p>
+    </div>
+""", unsafe_allow_html=True)
