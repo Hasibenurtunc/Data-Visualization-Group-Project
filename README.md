@@ -19,6 +19,7 @@ The dashboard presents nine different visualizations that examine shopping behav
 ## Dataset
 
 Source: https://www.kaggle.com/datasets/brandmustafa/shopping-trends
+
 The dataset used in this project is named `Shopping_behavior_updated.csv` and contains 3,900 rows and 18 columns. It includes customer information such as age, gender, product categories, purchase amounts, payment methods, shipping preferences, and customer ratings.
 
 ---
